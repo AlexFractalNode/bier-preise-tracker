@@ -1,4 +1,4 @@
-import requests
+from curl_cffi import requests # Wir nutzen jetzt curl_cffi statt normalem requests!
 from bs4 import BeautifulSoup
 import datetime
 import time
@@ -8,70 +8,68 @@ import os
 def get_netto_prices():
     url = "https://www.netto-online.de/filialangebote"
     
-    # --- KORREKTUR 1: Variable initialisieren ---
-    # Wir erstellen ein leeres Wörterbuch, bevor wir versuchen, es zu füllen.
-    cookies = {} 
+    # 1. Store ID setzen (Zwickau)
+    # Das ist die wichtigste Info. Wir setzen sie hart, falls kein Secret da ist.
+    store_id = '5872' 
     
-    # Versuche Cookie aus Environment Variable zu holen (GitHub Secret)
-    cookie_string = os.environ.get("NETTO_COOKIE")
-      
-    if cookie_string:
-        print("🍪 Nutze Cookie aus GitHub Secrets!")
-        try:
-            # Den String in ein Dictionary umwandeln
-            for item in cookie_string.split(';'):
-                if '=' in item:
-                    name, value = item.strip().split('=', 1)
-                    cookies[name] = value
-        except Exception as e:
-            print(f"Fehler beim Parsen des Cookies: {e}")
-            # Falls das Parsen fehlschlägt, ist cookies immer noch {}, also leer.
-    
-    # --- KORREKTUR 2: Prüfen und Fallback setzen ---
-    # Wenn cookies leer ist (kein Secret oder Fehler), nutzen wir den Fallback.
-    if not cookies:
-        print("⚠️ Kein Secret gefunden oder leer. Nutze Fallback-ID.")
-        # Hier die ID aus deinem Screenshot (5872) nutzen!
-        cookies = {'netto_user_stores_id': '5872'} 
-        
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Referer": "https://www.netto-online.de/",
-        "Cache-Control": "no-cache", 
-    }
-
-    print(f"📡 Frage URL ab: {url}")
-    print(f"🍪 Genutzte Cookies (Store ID): {cookies.get('netto_user_stores_id', 'Unbekannt')}")
+    print(f"📡 Starte Stealth-Request an: {url}")
+    print(f"🍪 Setze Store-ID: {store_id}")
     
     try:
-        time.sleep(random.uniform(1, 3))
+        # 2. Session mit Browser-Tarnung erstellen
+        # impersonate="chrome120" sorgt dafür, dass der Server denkt, 
+        # wir wären ein echter Chrome Browser.
+        session = requests.Session(impersonate="chrome120")
         
-        response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+        # 3. Cookie setzen
+        # Wir setzen den Cookie direkt in der Session
+        session.cookies.set("netto_user_stores_id", store_id, domain=".netto-online.de")
+        
+        # Optional: Falls du den riesigen Cookie-String aus dem Secret hast, 
+        # versuchen wir, ihn zusätzlich zu parsen (für Anti-Bot Token)
+        full_cookie = os.environ.get("NETTO_COOKIE")
+        if full_cookie:
+            print("🍪 Versuche erweiterten Cookie aus Secrets zu laden...")
+            for item in full_cookie.split(';'):
+                if '=' in item:
+                    try:
+                        key, val = item.strip().split('=', 1)
+                        session.cookies.set(key, val, domain=".netto-online.de")
+                    except:
+                        pass
 
-        # Titel ausgeben zur Kontrolle
-        soup = BeautifulSoup(response.text, 'html.parser')
-        page_title = soup.title.text.strip() if soup.title else "Kein Titel"
-        print(f"📄 Seitentitel geladen: {page_title}")
+        # 4. Request senden
+        # timeout etwas höher setzen
+        time.sleep(random.uniform(2, 5)) 
+        response = session.get(url, timeout=30)
+        
         print(f"✅ Status Code: {response.status_code}")
         
+        # HTML parsen
+        soup = BeautifulSoup(response.text, 'html.parser')
+        page_title = soup.title.text.strip() if soup.title else "Kein Titel"
+        print(f"📄 Seitentitel: {page_title}")
+        
+        if response.status_code == 403 or "Access Denied" in page_title:
+            print("❌ Zugriff verweigert! Der Bot-Schutz hat uns erkannt.")
+            return []
+
         if "Filiale wählen" in response.text or "Markt wählen" in response.text:
-            print("⚠️ WARNUNG: Lande auf der 'Filiale wählen' Seite. Cookie wurde ignoriert oder ist ungültig.")
+            print("⚠️ Cookie ignoriert. Wir sind auf der Filial-Auswahl-Seite.")
+            # Fallback: Manchmal hilft es, die PLZ an die URL anzuhängen (funktioniert bei manchen Shops)
             return []
 
     except Exception as e:
-        print(f"❌ Netzwerkfehler: {e}")
+        print(f"❌ Kritischer Fehler beim Request: {e}")
         return []
 
-    # Elemente finden
+    # 5. Daten extrahieren
     product_tiles = soup.find_all('div', class_='product-list__item')
-    
-    print(f"🔍 Habe {len(product_tiles)} Produkt-Kacheln gefunden.")
+    print(f"🔍 Habe {len(product_tiles)} Produkte gefunden.")
     
     bier_data = []
-    # Erweiterte Liste für genauere Treffer
-    bier_keywords = ["Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten", "Ur-Krostitzer", "Sternquell", "Radeberger", "Feldschlößchen", "Freiberger"]
+    # Erweiterte Keyword-Liste
+    bier_keywords = ["Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten", "Ur-Krostitzer", "Sternquell", "Radeberger", "Feldschlößchen", "Freiberger", "Wernesgrüner", "Paulaner"]
 
     for tile in product_tiles:
         try:
@@ -79,18 +77,17 @@ def get_netto_prices():
             if not title_tag: continue
             name = title_tag.text.strip()
             
-            # Preis suchen (Aktion oder Normal)
-            price_container = tile.find(class_='product__current-price') 
+            # Suche nach Preis (Aktion oder Normal)
+            price_container = tile.find(class_='product__current-price')
             if not price_container: continue
 
-            # Preis säubern: "10. 99 *" -> "10.99"
-            # Wir entfernen Zeilenumbrüche und das Sternchen
+            # Preis säubern
             raw_text = price_container.text.replace('*', '').replace('\n', '').replace('\r', '').strip()
             
-            # Wenn der Preis leer ist, überspringen
+            # Wenn Preis leer, weitermachen
             if not raw_text: continue
             
-            # Filter: Ist es Bier?
+            # Ist es Bier?
             if any(k.lower() in name.lower() for k in bier_keywords):
                 print(f"🍺 TREFFER: {name} für {raw_text}")
                 
@@ -102,7 +99,6 @@ def get_netto_prices():
                 })
 
         except Exception as e:
-            # Fehler bei einem einzelnen Produkt ignorieren, weiter zum nächsten
             continue
 
     return bier_data
