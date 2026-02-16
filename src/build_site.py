@@ -22,14 +22,32 @@ def build_html():
     # 2. Daten mit Pandas aufbereiten (optional, aber praktisch für Sortierung)
     if data:
         df = pd.DataFrame(data)
-        # Preis in Zahl umwandeln (falls noch String) und sortieren
-        df['preis'] = pd.to_numeric(df['preis'])
+        
+        # --- FIX: Daten bereinigen BEVOR wir rechnen ---
+        # 1. Sicherstellen, dass die Spalte Text ist
+        df['preis'] = df['preis'].astype(str)
+        
+        # 2. "1.-" oder "1,-" ersetzen durch "1.00"
+        # Regex=False ist schneller und sicherer für einfache Ersetzungen
+        df['preis'] = df['preis'].str.replace('.-', '.00', regex=False)
+        df['preis'] = df['preis'].str.replace(',-', '.00', regex=False)
+        
+        # 3. Deutsches Komma gegen Punkt tauschen
+        df['preis'] = df['preis'].str.replace(',', '.', regex=False)
+        
+        # 4. Leerraum entfernen und in Zahl umwandeln
+        df['preis'] = pd.to_numeric(df['preis'].str.strip(), errors='coerce')
+        
+        # 5. Zeilen löschen, wo der Preis ungültig war (NaN)
+        df = df.dropna(subset=['preis'])
+        # --- FIX ENDE ---
+
         # Sortieren: Erst nach Preis, dann nach Name
         df = df.sort_values(by=['preis', 'name'])
         products = df.to_dict(orient='records')
     else:
         products = []
-
+        
     # 3. Das HTML Template (Jinja2 + Pico.css für schnelles Design)
     template_str = """
     <!DOCTYPE html>
