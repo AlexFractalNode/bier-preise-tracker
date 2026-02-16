@@ -1,51 +1,59 @@
 name: Daily Beer Price Tracker
 
 on:
-  # 1. Automatisch: Jeden Tag um 06:00 Uhr morgens (UTC Zeit)
   schedule:
-    - cron: '0 6 * * *'
-  # 2. Manuell: Erlaubt dir, den Scraper per Button auf GitHub sofort zu starten (zum Testen)
+    - cron: '0 6 * * *' # Täglich 6 Uhr
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write      # WICHTIG für GitHub Pages
+  id-token: write   # WICHTIG für GitHub Pages
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
-    permissions:
-      # WICHTIG: Erlaubt dem Bot, die neuen Daten zurück ins Repo zu schreiben
-      contents: write
-
     steps:
-      # Schritt A: Code aus dem Repo holen
+      # 1. Code holen
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Schritt B: Python Umgebung aufsetzen
+      # 2. Python installieren
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # Schritt C: Bibliotheken installieren
+      # 3. Abhängigkeiten (jetzt mit jinja2)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # Schritt D: Dein Skript ausführen
-      - name: Run Scraper
-        run: python src/main.py
-
-      # Schritt E: Ergebnisse speichern (Commit & Push)
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🍺 Daily Data Update: ${{ github.event.head_commit.message }}"
-          branch: main
-          file_pattern: 'data/*.json'
-
-      # Schritt D: Dein Skript ausführen
+      # 4. Scraper laufen lassen (holt preise.json)
       - name: Run Scraper
         env:
-          NETTO_COOKIE: ${{ secrets.NETTO_COOKIE }}  <-- Das hier hinzufügen!
+          NETTO_COOKIE: ${{ secrets.NETTO_COOKIE }}
         run: python src/main.py
+
+      # 5. Webseite bauen (baut public/index.html aus preise.json)
+      - name: Build Website
+        run: python src/build_site.py
+
+      # 6. Daten (JSON) ins Repo committen (optional, falls du Historie willst)
+      - name: Commit data changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🍺 Update Data"
+          file_pattern: 'data/*.json'
+
+      # 7. Webseite auf GitHub Pages hochladen
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'public' # Wir laden nur den 'public' Ordner hoch
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
