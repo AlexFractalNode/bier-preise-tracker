@@ -3,18 +3,29 @@ from bs4 import BeautifulSoup
 import datetime
 import time
 import random
+import os
 
 def get_netto_prices():
-    # Wir nutzen die URL, die wir im Browser sehen
     url = "https://www.netto-online.de/filialangebote"
     
-    # WICHTIG: Wir simulieren einen echten Browser so gut es geht
-    # Der Cookie-String muss exakt so aussehen wie im Browser
-    # TIPP: Kopiere hier später deinen ECHTEN Cookie-String rein, wenn es immer noch nicht geht
-    cookies = {
-        'netto_user_store_id': '8062', # Deine Filial-ID (Zwickau)
-    }
-
+    # Versuche Cookie aus Environment Variable zu holen (GitHub Secret)
+    cookie_string = os.environ.get("NETTO_COOKIE")
+    
+    cookies = {}
+    if cookie_string:
+        # Den String in ein Dictionary umwandeln
+        print("🍪 Nutze Cookie aus GitHub Secrets!")
+        try:
+            for item in cookie_string.split(';'):
+                if '=' in item:
+                    name, value = item.strip().split('=', 1)
+                    cookies[name] = value
+        except:
+            print("Konnte Cookie nicht parsen, nutze Fallback")
+    
+    if not cookies:
+        cookies = {'netto_user_store_id': '8062'}
+        
     headers = {
         # Ein sehr gängiger User-Agent
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
