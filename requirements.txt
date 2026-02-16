@@ -2,3 +2,4 @@ curl_cffi
 beautifulsoup4
 pandas
 lxml
+jinja2
