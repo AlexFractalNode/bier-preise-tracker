@@ -43,3 +43,9 @@ jobs:
           commit_message: "🍺 Daily Data Update: ${{ github.event.head_commit.message }}"
           branch: main
           file_pattern: 'data/*.json'
+
+      # Schritt D: Dein Skript ausführen
+      - name: Run Scraper
+        env:
+          NETTO_COOKIE: ${{ secrets.NETTO_COOKIE }}  <-- Das hier hinzufügen!
+        run: python src/main.py
