@@ -1,92 +1,92 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 import datetime
+import time
+import random
 
-def get_netto_prices(store_id="8062"): # 8062 ist oft Teil der PLZ oder interne ID
-    # 1. URL für Filialangebote
+def get_netto_prices():
+    # Wir nutzen die URL, die wir im Browser sehen
     url = "https://www.netto-online.de/filialangebote"
     
-    # 2. WICHTIG: Cookies setzen, um die Filiale zu simulieren
-    # Ohne das bekommst du nur eine "Filiale wählen" Seite
+    # WICHTIG: Wir simulieren einen echten Browser so gut es geht
+    # Der Cookie-String muss exakt so aussehen wie im Browser
+    # TIPP: Kopiere hier später deinen ECHTEN Cookie-String rein, wenn es immer noch nicht geht
     cookies = {
-        '5872': store_id,  # Das sagt dem Server: "Ich bin in diesem Markt"
-        # Optional: Manchmal braucht man auch eine PLZ im Cookie, 
-        # aber oft reicht die Store-ID, die Netto beim ersten Besuch setzt.
+        'netto_user_store_id': '8062', # Deine Filial-ID (Zwickau)
     }
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        # Ein sehr gängiger User-Agent
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.netto-online.de/",
+        "Cache-Control": "max-age=0",
     }
 
-    print(f"Lade Angebote für Store ID {store_id}...")
-    response = requests.get(url, headers=headers, cookies=cookies)
+    print(f"📡 Frage URL ab: {url}")
     
-    if response.status_code != 200:
-        print("Fehler beim Laden der Seite")
+    try:
+        # Kleiner Sleep, um nicht zu aggressiv zu wirken
+        time.sleep(random.uniform(1, 3))
+        
+        response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+        
+        print(f"✅ Status Code: {response.status_code}")
+        
+        # DEBUGGING: Was haben wir bekommen?
+        soup = BeautifulSoup(response.text, 'html.parser')
+        page_title = soup.title.text.strip() if soup.title else "Kein Titel"
+        print(f"📄 Seitentitel: {page_title}")
+        
+        # Checken, ob wir auf der Filial-Auswahl gelandet sind
+        if "Filiale wählen" in response.text or "Markt wählen" in response.text:
+            print("⚠️ WARNUNG: Der Scraper ist auf der 'Filiale wählen' Seite gelandet. Cookie funktioniert nicht.")
+            return []
+
+    except Exception as e:
+        print(f"❌ Netzwerkfehler: {e}")
         return []
 
-    # 3. HTML Parsen
-    soup = BeautifulSoup(response.text, 'html.parser')
-    
-    # Alle Produkte finden
+    # Alle Produkte finden (angepasst an deinen HTML Code)
+    # Netto nutzt product-list__item ODER tile-container, wir suchen beides
     product_tiles = soup.find_all('div', class_='product-list__item')
     
-    bier_data = []
+    print(f"🔍 Habe {len(product_tiles)} Produkt-Kacheln gefunden.")
     
-    # Keywords, nach denen wir suchen (um Waschmittel etc. auszuschließen)
-    bier_keywords = ["Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten"]
+    bier_data = []
+    bier_keywords = ["Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten", "Ur-Krostitzer", "Sternquell"]
 
     for tile in product_tiles:
         try:
-            # Titel extrahieren
+            # Titel
             title_tag = tile.find('span', class_='product__title')
-            if not title_tag:
-                continue
+            if not title_tag: continue
             name = title_tag.text.strip()
             
-            # Einfacher Filter: Ist es Bier?
-            if not any(keyword.lower() in name.lower() for keyword in bier_keywords):
-                continue
-
-            # Preis extrahieren
-            # Netto nutzt <ins> für Aktionspreise und div für normale
-            price_tag = tile.find(class_='product__current-price')
-            if price_tag:
-                # Der Preis kommt oft als "9. 49 *" -> wir reinigen das
-                raw_price = price_tag.text.replace('*', '').strip()
-                # Entferne Zeilenumbrüche, falls vorhanden
-                price = float(raw_price.replace('\n', '').replace('\r', ''))
-            else:
-                price = 0.0
-
-            # Menge extrahieren (z.B. "20 x 0,5 l")
-            amount_tag = tile.find('span', class_='product-property__bundle-text')
-            amount = amount_tag.text.strip() if amount_tag else "n/a"
-
-            # Pfand extrahieren (wichtig für Endpreis)
-            deposit_tag = tile.find('span', class_='product-property__deposit-text')
-            deposit = deposit_tag.text.strip() if deposit_tag else "0"
-
-            bier_data.append({
-                "supermarkt": "Netto Marken-Discount",
-                "name": name,
-                "preis": price,
-                "menge": amount,
-                "datum": datetime.date.today().isoformat(),
-                "pfand_info": deposit
-            })
+            # Preis
+            price_container = tile.find('ins', class_='product__current-price') # Aktionspreis
+            if not price_container:
+                price_container = tile.find('div', class_='product__current-price') # Normalpreis
             
+            if not price_container: continue
+
+            # Preis säubern (Netto macht oft: 10.<span class="small">99</span>)
+            # Wir holen einfach allen Text und entfernen Umbrüche
+            raw_price = price_container.text.strip().replace('\n', '').replace('*', '')
+            
+            # Filter
+            if any(k.lower() in name.lower() for k in bier_keywords):
+                print(f"🍺 BIER GEFUNDEN: {name} für {raw_price}")
+                
+                bier_data.append({
+                    "supermarkt": "Netto",
+                    "name": name,
+                    "preis": raw_price,
+                    "datum": datetime.date.today().isoformat()
+                })
+
         except Exception as e:
-            print(f"Fehler bei einem Produkt: {e}")
             continue
 
     return bier_data
-
-if __name__ == "__main__":
-    # Testlauf
-    angebote = get_netto_prices()
-    df = pd.DataFrame(angebote)
-    print(df)
-    # Speichern für später
-    # df.to_csv("netto_bier.csv", index=False)
