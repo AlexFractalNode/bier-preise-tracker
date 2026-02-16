@@ -1,26 +1,51 @@
 [
     {
-        "supermarkt": "Netto",
+        "supermarkt": "Netto Marken-Discount",
         "name": "Köstritzer Edel Pils",
         "preis": "9.49",
+        "menge": "20 x 0,5 l",
         "datum": "2026-02-16"
     },
     {
-        "supermarkt": "Netto",
-        "name": "Weizenmischbrot",
-        "preis": "0.89",
+        "supermarkt": "Netto Marken-Discount",
+        "name": "Berliner Mix",
+        "preis": "3.49",
+        "menge": "361 g",
         "datum": "2026-02-16"
     },
     {
-        "supermarkt": "Netto",
+        "supermarkt": "Netto Marken-Discount",
         "name": "Meisterbräu Biere",
         "preis": "5.99",
+        "menge": "20 x 0,5 l",
         "datum": "2026-02-16"
     },
     {
-        "supermarkt": "Netto",
+        "supermarkt": "Netto Marken-Discount",
         "name": "Budweiser Budvar Original Czech Imported Lager",
         "preis": "12.99",
+        "menge": "20 x 0,5 l",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto Marken-Discount",
+        "name": "Fanta, Sprite oder Mezzo Mix",
+        "preis": "4.76",
+        "menge": "6 x 1,25 l",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto Marken-Discount",
+        "name": "Coca-Cola, Fanta, Sprite oder Mezzo Mix",
+        "preis": "1.49",
+        "menge": "2 l",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto Marken-Discount",
+        "name": "Karlsberg Mixery",
+        "preis": "1.–",
+        "menge": "0,5 l",
         "datum": "2026-02-16"
     }
 ]
