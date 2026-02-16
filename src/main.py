@@ -7,6 +7,13 @@ def main():
     all_deals = []
     
     print("Starte Scraping...")
+
+    from scraper_netto import get_netto_prices
+
+        # ... in der main Funktion ...
+        print("Scrape Netto...")
+        netto_deals = get_netto_prices() # ID ggf. übergeben
+        all_deals.extend(netto_deals)
     
     # Beispiel-Dummy-Daten (bis wir die echten Scraper schreiben)
     # Hier würdest du später loopen: for market in markets: ...
