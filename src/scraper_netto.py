@@ -97,8 +97,16 @@ def get_netto_prices():
             if not price_container: continue
 
             raw_text = price_container.text.replace('*', '').replace('\n', '').replace('\r', '').strip()
-            if not raw_text: continue
             
+            # Deutsche Eigenheiten entfernen: "1.-" wird zu "1.00"
+            if ".-" in raw_text:
+                raw_text = raw_text.replace(".-", ".00")
+            # Komma zu Punkt (falls Netto mal das Format ändert)
+            raw_text = raw_text.replace(",", ".")
+            
+            # Wenn Preis leer, weitermachen
+            if not raw_text: continue
+       
             # --- DIE NEUE LOGIK ---
             
             # 1. Ist ein Bier-Keyword enthalten?
