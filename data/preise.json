@@ -1,1 +1,26 @@
-[]
+[
+    {
+        "supermarkt": "Netto",
+        "name": "Köstritzer Edel Pils",
+        "preis": "9.49",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto",
+        "name": "Weizenmischbrot",
+        "preis": "0.89",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto",
+        "name": "Meisterbräu Biere",
+        "preis": "5.99",
+        "datum": "2026-02-16"
+    },
+    {
+        "supermarkt": "Netto",
+        "name": "Budweiser Budvar Original Czech Imported Lager",
+        "preis": "12.99",
+        "datum": "2026-02-16"
+    }
+]
