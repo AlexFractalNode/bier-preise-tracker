@@ -5,12 +5,10 @@ import time
 import random
 
 def get_kaufland_prices():
-    # Wir probieren Varianten durch, da Kaufland oft Abkürzungen wie "str" nutzt
-    # Zwickau Äußere Dresdner Str. ist die vermutete Filiale
+    # Wir testen die wahrscheinlichste URL-Variante für Zwickau
     possible_stores = [
-        "zwickau-aussere-dresdner-str",      # Wahrscheinlichste Variante
-        "zwickau-aussere-dresdner-strasse",  # Lange Schreibweise
-        "de-zwickau-aussere-dresdner-str",   # Mit Länderkürzel
+        "zwickau-aussere-dresdner-str",
+        "de-zwickau-aussere-dresdner-str"
     ]
     
     session = requests.Session(impersonate="chrome120")
@@ -23,11 +21,10 @@ def get_kaufland_prices():
 
     bier_data = []
     
-    # Keywords
     bier_keywords = [
         "pils", "helles", "weizen", "bier", "lager", "radler", "export", "kasten", 
         "ur-krostitzer", "sternquell", "radeberger", "feldschlößchen", "freiberger", 
-        "wernesgrüner", "paulaner", "krombacher", "beck's", "hasseröder", "mix"
+        "wernesgrüner", "paulaner", "krombacher", "beck's", "hasseröder", "mixery"
     ]
     ignore_keywords = ["alkoholfrei", "malztrunk", "fassbrause"]
 
@@ -40,69 +37,70 @@ def get_kaufland_prices():
             response = session.get(url, headers=headers, timeout=30)
             
             if response.status_code != 200:
-                print(f"   ❌ Status {response.status_code} - Weiter...")
+                print(f"   ❌ Status {response.status_code}")
                 continue
             
-            # Prüfen, ob die Antwort leer ist oder HTML enthält (statt JSON)
-            if not response.text or response.text.strip().startswith("<"):
-                print("   ❌ Antwort ist kein gültiges JSON (vermutlich HTML Fehlerseite).")
-                continue
-
             data = response.json()
             
-            # Checken, ob wir Kategorien haben
-            if "data" not in data or "categories" not in data["data"]:
-                print("   ⚠️ JSON erhalten, aber keine Kategorien gefunden (leeres Angebot?).")
-                # Debugging: Zeig uns die Schlüssel der Antwort
-                print(f"   Keys in Antwort: {list(data.keys())}")
-                continue
+            # --- HIER IST DER FIX START ---
+            all_raw_offers = []
+            
+            # Fall A: Die API liefert direkt eine Liste von Kategorien (Dein Fall)
+            if isinstance(data, list):
+                print(f"   ℹ️ Struktur erkannt: Liste mit {len(data)} Kategorien.")
+                for category in data:
+                    # Jedes Element sollte ein 'offers'-Feld haben
+                    if isinstance(category, dict):
+                        all_raw_offers.extend(category.get("offers", []))
+            
+            # Fall B: Die API liefert ein Objekt (Andere Regionen/Versionen)
+            elif isinstance(data, dict):
+                print("   ℹ️ Struktur erkannt: Dictionary.")
+                if "data" in data and "categories" in data["data"]:
+                    for cat in data["data"]["categories"]:
+                        all_raw_offers.extend(cat.get("offers", []))
+                elif "offers" in data:
+                    all_raw_offers.extend(data["offers"])
 
-            print(f"   ✅ Treffer! Gültige Daten für '{store_name}' gefunden.")
-            
-            # --- PARSING ---
-            categories = data["data"]["categories"]
-            
-            for cat in categories:
-                # Wir gehen durch alle Angebote in dieser Kategorie
-                for offer in cat.get("offers", []):
-                    try:
-                        title = offer.get("title", "")
-                        subtitle = offer.get("subtitle", "")
-                        full_name = f"{title} {subtitle}".strip()
+            if not all_raw_offers:
+                print("   ⚠️ Keine Angebote in der Liste gefunden.")
+                continue
+            # --- HIER IST DER FIX ENDE ---
+
+            print(f"   ✅ {len(all_raw_offers)} Roh-Angebote geladen. Filtere nach Bier...")
+
+            for offer in all_raw_offers:
+                try:
+                    title = offer.get("title", "")
+                    subtitle = offer.get("subtitle", "")
+                    full_name = f"{title} {subtitle}".strip()
+                    
+                    name_lower = full_name.lower()
+                    is_match = any(k in name_lower for k in bier_keywords)
+                    is_ignored = any(k in name_lower for k in ignore_keywords)
+                    
+                    if is_match and not is_ignored:
+                        price = offer.get("price", 0.0)
+                        unit = offer.get("unit", "")
                         
-                        # Filter prüfen
-                        name_lower = full_name.lower()
-                        is_match = any(k in name_lower for k in bier_keywords)
-                        is_ignored = any(k in name_lower for k in ignore_keywords)
+                        print(f"   🍺 Gefunden: {full_name} für {price}€")
                         
-                        if is_match and not is_ignored:
-                            price = offer.get("price", 0.0)
-                            unit = offer.get("unit", "")
-                            
-                            # Kaufland hat oft seltsame Einheiten im Titel, wir nehmen 'unit' wenn da,
-                            # ansonsten versuchen wir, es aus dem Titel zu raten.
-                            
-                            print(f"   🍺 Gefunden: {full_name} für {price}€")
-                            
-                            bier_data.append({
-                                "supermarkt": "Kaufland",
-                                "name": full_name,
-                                "preis": float(price),
-                                "menge": unit,
-                                "datum": datetime.date.today().isoformat()
-                            })
-                            
-                    except Exception as e:
-                        continue
+                        bier_data.append({
+                            "supermarkt": "Kaufland",
+                            "name": full_name,
+                            "preis": float(price),
+                            "menge": unit,
+                            "datum": datetime.date.today().isoformat()
+                        })
+                        
+                except Exception as e:
+                    continue
             
-            # Wenn wir erfolgreich waren, brechen wir die Schleife über die Store-Namen ab
             if bier_data:
-                break
-            else:
-                print("   ⚠️ Zwar Daten geladen, aber kein Bier gefunden. Probiere nächste URL...")
+                break # Wenn wir Daten haben, hören wir auf URLs zu testen
 
         except Exception as e:
-            print(f"   ❌ Fehler bei diesem Versuch: {e}")
+            print(f"   ❌ Fehler: {e}")
             continue
 
     print(f"✅ Fertig. {len(bier_data)} Angebote bei Kaufland gefunden.")
