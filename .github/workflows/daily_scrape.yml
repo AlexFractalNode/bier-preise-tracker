@@ -1,34 +1,45 @@
-name: Täglicher Bier-Scrape
+name: Daily Beer Price Tracker
 
 on:
+  # 1. Automatisch: Jeden Tag um 06:00 Uhr morgens (UTC Zeit)
   schedule:
-    - cron: '0 6 * * *'  # Jeden Tag um 06:00 UTC
-  workflow_dispatch:      # Erlaubt manuellen Start per Klick zum Testen
+    - cron: '0 6 * * *'
+  # 2. Manuell: Erlaubt dir, den Scraper per Button auf GitHub sofort zu starten (zum Testen)
+  workflow_dispatch:
 
 jobs:
-  scrape-and-update:
+  build:
     runs-on: ubuntu-latest
+    
     permissions:
-      contents: write     # WICHTIG: Erlaubt dem Bot, die CSV/JSON zu committen
+      # WICHTIG: Erlaubt dem Bot, die neuen Daten zurück ins Repo zu schreiben
+      contents: write
 
     steps:
-    - name: Repo auschecken
-      uses: actions/checkout@v4
+      # Schritt A: Code aus dem Repo holen
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Python einrichten
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      # Schritt B: Python Umgebung aufsetzen
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Abhängigkeiten installieren
-      run: |
-        pip install -r requirements.txt
+      # Schritt C: Bibliotheken installieren
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Scraper ausführen
-      run: python src/main.py
+      # Schritt D: Dein Skript ausführen
+      - name: Run Scraper
+        run: python src/main.py
 
-    - name: Daten committen und pushen
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "🤖 Update Bierpreise [skip ci]"
-        file_pattern: 'data/*.json'
+      # Schritt E: Ergebnisse speichern (Commit & Push)
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🍺 Daily Data Update: ${{ github.event.head_commit.message }}"
+          branch: main
+          file_pattern: 'data/*.json'
