@@ -5,7 +5,7 @@ import time
 import random
 
 def get_kaufland_prices():
-    # Wir testen die wahrscheinlichste URL-Variante für Zwickau
+    # Zwickau Äußere Dresdner Str
     possible_stores = [
         "zwickau-aussere-dresdner-str",
         "de-zwickau-aussere-dresdner-str"
@@ -24,7 +24,7 @@ def get_kaufland_prices():
     bier_keywords = [
         "pils", "helles", "weizen", "bier", "lager", "radler", "export", "kasten", 
         "ur-krostitzer", "sternquell", "radeberger", "feldschlößchen", "freiberger", 
-        "wernesgrüner", "paulaner", "krombacher", "beck's", "hasseröder", "mixery"
+        "wernesgrüner", "paulaner", "krombacher", "beck's", "hasseröder", "mixery", "köstritzer"
     ]
     ignore_keywords = ["alkoholfrei", "malztrunk", "fassbrause"]
 
@@ -41,37 +41,30 @@ def get_kaufland_prices():
                 continue
             
             data = response.json()
-            
-            # --- HIER IST DER FIX START ---
             all_raw_offers = []
             
-            # Fall A: Die API liefert direkt eine Liste von Kategorien (Dein Fall)
+            # --- LOGIK UPDATE ---
             if isinstance(data, list):
-                print(f"   ℹ️ Struktur erkannt: Liste mit {len(data)} Kategorien.")
-                for category in data:
-                    # Jedes Element sollte ein 'offers'-Feld haben
-                    if isinstance(category, dict):
-                        all_raw_offers.extend(category.get("offers", []))
-            
-            # Fall B: Die API liefert ein Objekt (Andere Regionen/Versionen)
+                print(f"   ℹ️ Liste erkannt ({len(data)} Einträge). Gehe davon aus, dass dies direkt die Angebote sind.")
+                all_raw_offers = data # Wir nehmen die Liste direkt!
             elif isinstance(data, dict):
-                print("   ℹ️ Struktur erkannt: Dictionary.")
+                # Alte Logik als Fallback, falls sich die API ändert
                 if "data" in data and "categories" in data["data"]:
-                    for cat in data["data"]["categories"]:
+                     for cat in data["data"]["categories"]:
                         all_raw_offers.extend(cat.get("offers", []))
                 elif "offers" in data:
                     all_raw_offers.extend(data["offers"])
 
             if not all_raw_offers:
-                print("   ⚠️ Keine Angebote in der Liste gefunden.")
+                print("   ⚠️ Keine Daten extrahiert.")
                 continue
-            # --- HIER IST DER FIX ENDE ---
 
-            print(f"   ✅ {len(all_raw_offers)} Roh-Angebote geladen. Filtere nach Bier...")
+            print(f"   ✅ Durchsuche {len(all_raw_offers)} Angebote nach Bier...")
 
             for offer in all_raw_offers:
                 try:
-                    title = offer.get("title", "")
+                    # Kaufland hat manchmal 'title' und manchmal 'name'
+                    title = offer.get("title") or offer.get("name") or ""
                     subtitle = offer.get("subtitle", "")
                     full_name = f"{title} {subtitle}".strip()
                     
@@ -97,7 +90,7 @@ def get_kaufland_prices():
                     continue
             
             if bier_data:
-                break # Wenn wir Daten haben, hören wir auf URLs zu testen
+                break 
 
         except Exception as e:
             print(f"   ❌ Fehler: {e}")
