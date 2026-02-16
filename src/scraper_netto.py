@@ -66,35 +66,60 @@ def get_netto_prices():
     # 5. Daten extrahieren
     product_tiles = soup.find_all('div', class_='product-list__item')
     print(f"🔍 Habe {len(product_tiles)} Produkte gefunden.")
-    
+
     bier_data = []
-    # Erweiterte Keyword-Liste
-    bier_keywords = ["Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten", "Ur-Krostitzer", "Sternquell", "Radeberger", "Feldschlößchen", "Freiberger", "Wernesgrüner", "Paulaner"]
+    
+    # 1. WHITELIST: Diese Wörter suchen wir
+    bier_keywords = [
+        "Pils", "Helles", "Weizen", "Bier", "Lager", "Radler", "Export", "Kasten", 
+        "Ur-Krostitzer", "Sternquell", "Radeberger", "Feldschlößchen", "Freiberger", 
+        "Wernesgrüner", "Paulaner", "Krombacher", "Beck's", "Hasseröder", "Mix"
+    ]
+
+    # 2. BLACKLIST: Diese Wörter schließen wir explizit aus
+    # Damit fliegt das "Weizenmischbrot" raus, auch wenn "Weizen" drin steht.
+    ignore_keywords = [
+        "brot", "brötchen", "baguette", "toast", "mehl", # Backwaren
+        "wurst", "schinken", "salami", # Fleischwaren mit "Bierwurst" etc.
+        "käse", "senf", "chips", "nüsse", # Snacks & Dips
+        "alkoholfrei" # Optional: Falls du nur echtes Bier willst, sonst weglassen
+    ]
 
     for tile in product_tiles:
         try:
             title_tag = tile.find('span', class_='product__title')
             if not title_tag: continue
             name = title_tag.text.strip()
+            name_lower = name.lower()
             
-            # Suche nach Preis (Aktion oder Normal)
-            price_container = tile.find(class_='product__current-price')
+            # Preis suchen
+            price_container = tile.find(class_='product__current-price') 
             if not price_container: continue
 
-            # Preis säubern
             raw_text = price_container.text.replace('*', '').replace('\n', '').replace('\r', '').strip()
-            
-            # Wenn Preis leer, weitermachen
             if not raw_text: continue
             
-            # Ist es Bier?
-            if any(k.lower() in name.lower() for k in bier_keywords):
+            # --- DIE NEUE LOGIK ---
+            
+            # 1. Ist ein Bier-Keyword enthalten?
+            is_match = any(k.lower() in name_lower for k in bier_keywords)
+            
+            # 2. Ist ein verbotenes Wort enthalten?
+            is_ignored = any(bad.lower() in name_lower for bad in ignore_keywords)
+            
+            # Nur speichern, wenn Treffer UND NICHT ignoriert
+            if is_match and not is_ignored:
                 print(f"🍺 TREFFER: {name} für {raw_text}")
                 
+                # Optional: Menge extrahieren für Literpreis-Berechnung
+                amount_tag = tile.find('span', class_='product-property__bundle-text')
+                amount = amount_tag.text.strip() if amount_tag else ""
+                
                 bier_data.append({
-                    "supermarkt": "Netto",
+                    "supermarkt": "Netto Marken-Discount",
                     "name": name,
                     "preis": raw_text,
+                    "menge": amount,
                     "datum": datetime.date.today().isoformat()
                 })
 
