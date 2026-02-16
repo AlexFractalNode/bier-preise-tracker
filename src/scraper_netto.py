@@ -10,7 +10,7 @@ def get_netto_prices(store_id="8062"): # 8062 ist oft Teil der PLZ oder interne 
     # 2. WICHTIG: Cookies setzen, um die Filiale zu simulieren
     # Ohne das bekommst du nur eine "Filiale wählen" Seite
     cookies = {
-        'netto_user_store_id': store_id,  # Das sagt dem Server: "Ich bin in diesem Markt"
+        '5872': store_id,  # Das sagt dem Server: "Ich bin in diesem Markt"
         # Optional: Manchmal braucht man auch eine PLZ im Cookie, 
         # aber oft reicht die Store-ID, die Netto beim ersten Besuch setzt.
     }
