@@ -44,13 +44,17 @@ def build_html():
     if data:
         df = pd.DataFrame(data)
         
-        # --- CLEANING ---
+        # --- CLEANING: Preise fixen ---
         df['preis'] = df['preis'].astype(str)
-        df['preis'] = df['preis'].str.replace('.-', '.00', regex=False)
+        # WICHTIG: Das hier repariert den "1.-" Fehler von Mixery/Netto
+        df['preis'] = df['preis'].str.replace('.-', '.00', regex=False) 
+        df['preis'] = df['preis'].str.replace(',-', '.00', regex=False)
         df['preis'] = df['preis'].str.replace(',', '.', regex=False)
+        
+        # Umwandeln und Fehler ignorieren (z.B. leere Preise)
         df['preis'] = pd.to_numeric(df['preis'], errors='coerce')
         df = df.dropna(subset=['preis'])
-
+        
         verbotene_woerter = ["cola", "fanta", "sprite", "mezzo", "limo", "saft", "wasser", "energy", "mate"]
         maske = df['name'].apply(lambda x: not any(bad in x.lower() for bad in verbotene_woerter))
         df = df[maske]
