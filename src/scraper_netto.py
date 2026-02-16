@@ -10,8 +10,7 @@ def get_netto_prices():
     
     # Versuche Cookie aus Environment Variable zu holen (GitHub Secret)
     cookie_string = os.environ.get("NETTO_COOKIE")
-    
-    cookies = {}
+      
     if cookie_string:
         # Den String in ein Dictionary umwandeln
         print("🍪 Nutze Cookie aus GitHub Secrets!")
@@ -24,7 +23,7 @@ def get_netto_prices():
             print("Konnte Cookie nicht parsen, nutze Fallback")
     
     if not cookies:
-        cookies = {'netto_user_store_id': '8062'}
+        cookies = {'netto_user_stores_id': '8062'}
         
     headers = {
         # Ein sehr gängiger User-Agent
@@ -42,6 +41,8 @@ def get_netto_prices():
         time.sleep(random.uniform(1, 3))
         
         response = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+
+        print(f"Seite geladen. Titel: {BeautifulSoup(response.text, 'html.parser').title.text.strip()}")
         
         print(f"✅ Status Code: {response.status_code}")
         
