@@ -5,16 +5,16 @@ from jinja2 import Template
 from datetime import datetime
 import re
 
+
 def parse_menge(menge_str):
-    """
-    Extrahiert Liter-Anzahl aus Strings wie '20 x 0,5 l', '0,5 l' oder '5 Liter'.
-    """
     if not isinstance(menge_str, str):
         return None
+    # NEU: Wir ersetzen Bindestriche durch Leerzeichen, damit "0,5-l" zu "0.5 l" wird
+    menge_str = menge_str.lower().replace(',', '.').replace('-', ' ').strip()
     
-    menge_str = menge_str.lower().replace(',', '.').strip()
-    
+    # Der Rest bleibt gleich
     match_kasten = re.search(r'(\d+)\s*x\s*([\d.]+)', menge_str)
+    # ...
     if match_kasten:
         anzahl = float(match_kasten.group(1))
         volumen = float(match_kasten.group(2))
